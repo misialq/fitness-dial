@@ -127,3 +127,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# PyCharm stuff
+.idea/
+
+# local pg database
+postgres_data/
+
+docker-compose-prod-withconn.yml
