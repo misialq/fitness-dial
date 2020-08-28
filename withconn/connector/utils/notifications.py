@@ -9,7 +9,7 @@ def subscribe_to_notifications(access_token: str, callback_url: str, appli: int)
     }
     headers = {"Authorization": f"Bearer {access_token}"}
     notify_response = requests.post(
-        "https://wbsapi.withings.net/notify", data=req_params, headers=headers
+        "https://wbsapi.withings.net/notify", data=req_params, headers=headers,
     )
     return notify_response
 
