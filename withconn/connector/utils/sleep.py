@@ -1,7 +1,8 @@
 import datetime
+import logging
 
+from django.db import IntegrityError
 from withings_api import (
-    new_credentials,
     WithingsApi,
     GetSleepSummaryField,
     GetSleepField,
@@ -29,13 +30,7 @@ DATA_FIELDS_SUMMARY = [
     GetSleepSummaryField.SNORING_EPISODE_COUNT,
     GetSleepSummaryField.WAKEUP_COUNT,
 ]
-
-
-def get_authenticated_api(
-    access_token_data: dict, client_id: str, client_secret: str
-) -> WithingsApi:
-    credentials = new_credentials(client_id, client_secret, access_token_data)
-    return WithingsApi(credentials)
+LOGGER = logging.getLogger(__name__)
 
 
 def get_sleep_data_raw(
@@ -104,44 +99,47 @@ def get_sleep_data_summary(
         )
         if len(potential_entry) == 0:
             # save sleep summary to DB
-            new_sleep_summary = SleepSummary(
-                start_date=entry.startdate.datetime,
-                end_date=entry.enddate.datetime,
-                user_id=api._credentials.userid,
-                device_type=entry.model.name,
-                device_id=entry.model.value,
-                breathing_disturbances_intensity=0
-                if entry.data.breathing_disturbances_intensity is None
-                else entry.data.breathing_disturbances_intensity,
-                deep_sleep_duration=entry.data.deepsleepduration,
-                duration_to_sleep=0
-                if entry.data.durationtosleep is None
-                else entry.data.durationtosleep,
-                duration_to_wakeup=0
-                if entry.data.durationtowakeup is None
-                else entry.data.durationtowakeup,
-                hr_average=entry.data.hr_average,
-                hr_max=entry.data.hr_max,
-                hr_min=entry.data.hr_min,
-                light_sleep_duration=entry.data.lightsleepduration,
-                rem_sleep_duration=entry.data.remsleepduration,
-                rr_average=entry.data.rr_average,
-                rr_max=entry.data.rr_max,
-                rr_min=entry.data.rr_min,
-                sleep_score=entry.data.sleep_score,
-                snoring=0 if entry.data.snoring is None else entry.data.snoring,
-                snoring_episode_count=0
-                if entry.data.snoringepisodecount is None
-                else entry.data.snoringepisodecount,
-                wakeup_count=0
-                if entry.data.wakeupcount is None
-                else entry.data.wakeupcount,
-                wakeup_duration=0
-                if entry.data.wakeupduration is None
-                else entry.data.wakeupduration,
-            )
-            new_sleep_summary.save()
-            counter += 1
+            try:
+                new_sleep_summary = SleepSummary(
+                    start_date=entry.startdate.datetime,
+                    end_date=entry.enddate.datetime,
+                    user_id=api._credentials.userid,
+                    device_type=entry.model.name,
+                    device_id=entry.model.value,
+                    breathing_disturbances_intensity=0
+                    if entry.data.breathing_disturbances_intensity is None
+                    else entry.data.breathing_disturbances_intensity,
+                    deep_sleep_duration=entry.data.deepsleepduration,
+                    duration_to_sleep=0
+                    if entry.data.durationtosleep is None
+                    else entry.data.durationtosleep,
+                    duration_to_wakeup=0
+                    if entry.data.durationtowakeup is None
+                    else entry.data.durationtowakeup,
+                    hr_average=entry.data.hr_average,
+                    hr_max=entry.data.hr_max,
+                    hr_min=entry.data.hr_min,
+                    light_sleep_duration=entry.data.lightsleepduration,
+                    rem_sleep_duration=entry.data.remsleepduration,
+                    rr_average=entry.data.rr_average,
+                    rr_max=entry.data.rr_max,
+                    rr_min=entry.data.rr_min,
+                    sleep_score=entry.data.sleep_score,
+                    snoring=0 if entry.data.snoring is None else entry.data.snoring,
+                    snoring_episode_count=0
+                    if entry.data.snoringepisodecount is None
+                    else entry.data.snoringepisodecount,
+                    wakeup_count=0
+                    if entry.data.wakeupcount is None
+                    else entry.data.wakeupcount,
+                    wakeup_duration=0
+                    if entry.data.wakeupduration is None
+                    else entry.data.wakeupduration,
+                )
+                new_sleep_summary.save()
+                counter += 1
+            except IntegrityError as e:
+                LOGGER.error("An error occurred when writing to the DB: %s.", e)
 
     return counter
 

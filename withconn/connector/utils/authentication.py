@@ -1,16 +1,20 @@
 import datetime
 import json
+import logging
 import os
 
 import requests
 from django.db.models import Q
 from django.utils import timezone
+from requests import Response
+from withings_api import WithingsApi, new_credentials
 
 from ..models import WithingsAuthentication
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
 CALLBACK_URL = os.environ.get("CALLBACK_URL")
+LOGGER = logging.getLogger(__name__)
 
 
 class AuthenticationError(Exception):
@@ -73,6 +77,19 @@ def request_new_access_token(code: str):
     token_response = requests.post(
         "https://wbsapi.withings.net/v2/oauth2", data=req_params
     )
+
+    json_response = json.loads(token_response.text)
+    if json_response["status"] >= 500:
+        raise AuthenticationError(
+            "Error while requesting a new token: %s", json_response["error"]
+        )
+    else:
+        LOGGER.debug(
+            "Token request response: %s, status: %s",
+            token_response.text,
+            token_response.status_code,
+        )
+
     return token_response
 
 
@@ -92,7 +109,7 @@ def save_access_token(token_response, user_id: int):
         scope=scope.split(","),
         token_type=token_type,
         user_id=user_id,
-        demo=True,
+        demo=False,
         expired=False,
     )
     new_token.save()
@@ -102,6 +119,7 @@ def save_access_token(token_response, user_id: int):
 
 
 def refresh_access_token(valid_refresh_token):
+    LOGGER.info("Refreshing access token...")
     req_params = {
         "action": "requesttoken",
         "client_id": CLIENT_ID,
@@ -112,4 +130,23 @@ def refresh_access_token(valid_refresh_token):
     token_response = requests.post(
         "https://wbsapi.withings.net/v2/oauth2", data=req_params
     )
+
+    json_response = json.loads(token_response.text)
+    if json_response["status"] >= 500:
+        raise AuthenticationError(
+            "Error while refreshing the token: %s", json_response["error"]
+        )
+    else:
+        LOGGER.debug(
+            "Token refresh response: %s, status: %s",
+            token_response.text,
+            token_response.status_code,
+        )
     return token_response
+
+
+def get_authenticated_api(
+    access_token_data: dict, client_id: str, client_secret: str
+) -> WithingsApi:
+    credentials = new_credentials(client_id, client_secret, access_token_data)
+    return WithingsApi(credentials)

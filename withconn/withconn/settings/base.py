@@ -13,6 +13,8 @@ import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+from django.utils.log import DEFAULT_LOGGING
+
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 
 SECRET_KEY = os.environ.get("SECRET_KEY")
@@ -125,12 +127,16 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
-            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "format": "[{levelname}] [{asctime}] [{module}] [process-{process:d}] [thread-{thread:d}] {message}",
             "style": "{",
         },
-        "simple": {"format": "{levelname} {message}", "style": "{",},
+        "simple": {"format": "[{levelname}] {message}", "style": "{",},
+        "django.server": DEFAULT_LOGGING["formatters"]["django.server"],
     },
-    "handlers": {"console": {"class": "logging.StreamHandler",},},
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
+        "django.server": DEFAULT_LOGGING["handlers"]["django.server"],
+    },
     "root": {"handlers": ["console"], "level": LOG_LEVEL,},
     "loggers": {
         "django": {"level": LOG_LEVEL, "handlers": ["console"], "propagate": True,},
@@ -139,5 +145,7 @@ LOGGING = {
             "level": LOG_LEVEL,
             "propagate": False,
         },
+        "django.server": DEFAULT_LOGGING["loggers"]["django.server"],
+        "connector": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
     },
 }
