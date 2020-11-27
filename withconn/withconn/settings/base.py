@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "connector.apps.ConnectorConfig",
+    "django_celery_beat",
 ]
 
 MIDDLEWARE = [
@@ -73,9 +74,9 @@ WSGI_APPLICATION = "withconn.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
-DB_NAME = os.getenv("DB_NAME", "testdb")
-DB_USER = os.getenv("DB_USER", "test")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "test")
+DB_NAME = os.getenv("POSTGRES_DB", "testdb")
+DB_USER = os.getenv("POSTGRES_USER", "test")
+DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "test")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", 5432)
 

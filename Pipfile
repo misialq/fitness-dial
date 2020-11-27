@@ -4,6 +4,8 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+flake8 = "*"
+black = "*"
 
 [packages]
 django = "~=3.1"
@@ -14,6 +16,11 @@ django-shortuuidfield = "==0.1.3"
 whitenoise = "==5.2.0"
 django-request-logging = "==0.7.2"
 numpy = "==1.19.1"
+celery = "==5.0.0"
+django-celery-beat = "==2.0.0"
 
 [requires]
 python_version = "3.8"
+
+[pipenv]
+allow_prereleases = true

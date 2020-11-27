@@ -1,4 +1,3 @@
-import datetime
 import logging
 import os
 
@@ -6,18 +5,23 @@ from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
 
+from .tasks import (
+    celery_request_all_activity_data,
+    celery_request_all_measurement_data,
+    celery_request_all_sleep_data,
+    celery_appli_44_sleep,
+    celery_appli_1_measurements,
+    celery_appli_16_activities,
+)
+
 from .utils.authentication import (
     get_valid_token,
-    CLIENT_ID,
-    CLIENT_SECRET,
     save_access_token,
     request_new_access_token,
     CALLBACK_URL,
-    get_authenticated_api,
 )
-from .utils.measurements import request_all_measurements_data, DATETIME_FORMAT
+from .utils.common import extract_and_parse_dates
 from .utils.notifications import fetch_all_notifications, subscribe_to_notifications
-from .utils.sleep import request_all_sleep_data
 
 LOGGER = logging.getLogger(__name__)
 HASS_CALLBACK_URL = os.environ.get("HASS_CALLBACK_URL")
@@ -35,19 +39,19 @@ def index(request):
             if token_response.status_code != 200:
                 return HttpResponseBadRequest("Token retrieval was unsuccessful.")
             save_access_token(token_response, user_id=123)
-            return HttpResponse(f"Authorisation request was successful.")
+            return HttpResponse("Authorisation request was successful.")
         elif code == "notifupdate":
             appli = request.GET.get("appli")
             # TODO: figure out what the correct ID should be here
-            user_id = 123
+            user_id = 22336123
             valid_token_data = get_valid_token(user_id)
 
-            notify_list_response = fetch_all_notifications(
-                valid_token_data["access_token"], appli
-            )
+            notify_list_response = fetch_all_notifications(valid_token_data["access_token"], appli)
             LOGGER.debug(notify_list_response.text)
             subscribe_response = subscribe_to_notifications(
-                valid_token_data["access_token"], CALLBACK_URL, appli,
+                valid_token_data["access_token"],
+                CALLBACK_URL,
+                appli,
             )
             LOGGER.debug(subscribe_response.text)
 
@@ -72,64 +76,15 @@ def index(request):
 
         if appli and int(appli) == 44:
             LOGGER.info("Received POST request for appli %s.", appli)
-            user_id = json_body["userid"]
-            start_date = datetime.datetime.fromtimestamp(int(json_body["startdate"]))
-            end_date = datetime.datetime.fromtimestamp(int(json_body["enddate"]))
-
-            # fetch a valid token
-            LOGGER.info("Fetching valid token for user: %s", user_id)
-            access_token_data = get_valid_token(user_id)
-
-            # make data request
-            LOGGER.info("Authenticating Withings API...")
-            wapi = get_authenticated_api(
-                access_token_data=access_token_data,
-                client_id=CLIENT_ID,
-                client_secret=CLIENT_SECRET,
-            )
-            LOGGER.info(
-                "Fetching sleep entries for dates: %s to %s...",
-                start_date.strftime(DATETIME_FORMAT),
-                end_date.strftime(DATETIME_FORMAT),
-            )
-            raw_counter, summary_counter = request_all_sleep_data(
-                wapi, start_date, end_date
-            )
-            LOGGER.info(
-                "Fetched and updated %s raw sleep entries and %s summary sleep entries",
-                raw_counter,
-                summary_counter,
-            )
+            celery_appli_44_sleep.delay(json_body)
             return HttpResponse("OK")
         elif appli and int(appli) == 1:
             LOGGER.info("Received POST request for appli %s.", appli)
-            user_id = json_body["userid"]
-            start_date = datetime.datetime.fromtimestamp(int(json_body["startdate"]))
-            end_date = datetime.datetime.fromtimestamp(int(json_body["enddate"]))
-
-            # fetch a valid token
-            LOGGER.info("Fetching valid token for user: %s", user_id)
-            access_token_data = get_valid_token(user_id)
-
-            # make data request
-            LOGGER.info("Authenticating Withings API...")
-            wapi = get_authenticated_api(
-                access_token_data=access_token_data,
-                client_id=CLIENT_ID,
-                client_secret=CLIENT_SECRET,
-            )
-            LOGGER.info(
-                "Fetching measurements of type 'weight' for dates %s to %s...",
-                start_date.strftime(DATETIME_FORMAT),
-                end_date.strftime(DATETIME_FORMAT),
-            )
-            measurements_counter = request_all_measurements_data(
-                wapi, "weight", start_date, end_date
-            )
-            LOGGER.info(
-                "Fetched and updated %s weight measurement entries.",
-                measurements_counter,
-            )
+            celery_appli_1_measurements.delay(json_body)
+            return HttpResponse("OK")
+        elif appli and int(appli) == 16:
+            LOGGER.info("Received POST request for appli %s.", appli)
+            celery_appli_16_activities.delay(json_body)
             return HttpResponse("OK")
         else:
             return HttpResponse("Unsupported appli.")
@@ -138,60 +93,25 @@ def index(request):
 def check_sleep(request):
     LOGGER.info("New sleep request.")
     # extract query params
-    start_date = request.GET.get("start_date")
-    end_date = request.GET.get("end_date")
+    start_date, end_date = extract_and_parse_dates(request)
     user_id = request.GET.get("user_id")
-
-    if not end_date:
-        end_date = datetime.datetime.now()
-    else:
-        end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").replace(hour=11)
-
-    if not start_date:
-        start_date = end_date - datetime.timedelta(hours=24)
-    else:
-        start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").replace(hour=18)
 
     # fetch a valid token
     LOGGER.info("Fetching valid token for user: %s", user_id)
     access_token_data = get_valid_token(user_id)
 
     # make data request
-    LOGGER.info("Authenticating Withings API...")
-    wapi = get_authenticated_api(
-        access_token_data=access_token_data,
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET,
-    )
-
-    LOGGER.info(
-        "Fetching sleep entries for dates: %s to %s...",
-        start_date.strftime(DATETIME_FORMAT),
-        end_date.strftime(DATETIME_FORMAT),
-    )
-    raw_counter, summary_counter = request_all_sleep_data(wapi, start_date, end_date)
-    return HttpResponse(
-        f"Fetched and updated:\n\t{raw_counter} new raw sleep entries\n\t{summary_counter} new summary sleep entries."
-    )
+    LOGGER.debug("Executing celery sleep task.")
+    celery_request_all_sleep_data.delay(access_token_data, start_date, end_date)
+    return HttpResponse("OK")
 
 
 def check_measurements(request):
     LOGGER.info("New measurement request.")
     # extract query params
-    start_date = request.GET.get("start_date")
-    end_date = request.GET.get("end_date")
+    start_date, end_date = extract_and_parse_dates(request)
     user_id = request.GET.get("user_id")
     measurement_types = request.GET.get("measurement_types")
-
-    if not end_date:
-        end_date = datetime.datetime.now()
-    else:
-        end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").replace(hour=11)
-
-    if not start_date:
-        start_date = end_date - datetime.timedelta(hours=24)
-    else:
-        start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").replace(hour=18)
 
     if not measurement_types:
         # TODO: probably should raise an error here
@@ -207,27 +127,21 @@ def check_measurements(request):
     access_token_data = get_valid_token(user_id)
 
     # make data request
-    LOGGER.info("Authenticating Withings API...")
-    wapi = get_authenticated_api(
-        access_token_data=access_token_data,
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET,
-    )
+    LOGGER.debug("Executing celery measurements task.")
+    celery_request_all_measurement_data.delay(access_token_data, start_date, end_date, measurement_types)
+    return HttpResponse("OK")
 
-    counters = []
-    for meas in measurement_types:
-        LOGGER.info(
-            "Fetching measurements of type '%s' for dates %s to %s...",
-            meas,
-            start_date.strftime(DATETIME_FORMAT),
-            end_date.strftime(DATETIME_FORMAT),
-        )
-        measurements_count = request_all_measurements_data(
-            wapi, meas, start_date, end_date
-        )
-        counters.append(measurements_count)
 
-    return HttpResponse(
-        f"Fetched and updated: [{','.join([str(x) for x in counters])}] entries for the following measurement types:"
-        f" [{','.join(measurement_types)}]."
-    )
+def check_activity(request):
+    LOGGER.info("New activity request.")
+    # extract query params
+    start_date, end_date = extract_and_parse_dates(request)
+    user_id = request.GET.get("user_id")
+
+    # fetch a valid token
+    LOGGER.info("Fetching valid token for user: %s", user_id)
+    access_token_data = get_valid_token(user_id)
+
+    # make data request
+    celery_request_all_activity_data.delay(access_token_data, start_date, end_date, user_id)
+    return HttpResponse("OK")
