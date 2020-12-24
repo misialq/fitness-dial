@@ -1,0 +1,58 @@
+version: '3.1'
+
+services:
+  db:
+    image: postgres:9.6
+    restart: always
+    env_file:
+      - vars-dev.env
+    ports:
+      - 5430:5432
+    volumes:
+      - ~/postgres_data:/var/lib/postgresql/data
+
+  web:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - 8081:8000
+    env_file:
+      - vars-dev.env
+    depends_on:
+      - db
+
+  rabbitmq:
+    image: 'docker.io/bitnami/rabbitmq:3.8.8'
+    ports:
+      - 4369:4369
+      - 5672:5672
+      - 25672:25672
+      - 15672:15672
+
+  celery_worker:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    entrypoint: /bin/bash
+    command: -c "celery -A withconn worker -l INFO"
+    depends_on:
+      - web
+      - db
+      - rabbitmq
+    hostname: celery_worker
+    env_file:
+      - vars-dev.env
+    restart: on-failure
+
+  fake_api:
+    build:
+      dockerfile: Dockerfile
+      context: fake_api
+    ports:
+      - 5000:5000
+    environment:
+      PORT: 5000
+      FLASK_DEBUG: 1
+      FLASK_ENV: development
+      PYTHONUNBUFFERED: 1

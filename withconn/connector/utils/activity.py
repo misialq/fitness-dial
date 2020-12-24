@@ -1,17 +1,16 @@
-import datetime
-import json
+import os
+from datetime import datetime
 import logging
-import pytz
 
-import requests
 from django.db import IntegrityError
 from django.utils.timezone import make_aware
-from withings_api import WithingsApi, MeasureGetActivityResponse, GetActivityField
 
 from ..models import ActivityRaw, ActivitySummary
-from .common import APIError
+from .common import send_data_request, prepare_date_pairs
 
-ACTIVITY_INTRADAY_DATA_FIELDS = [
+
+WITHINGS_API_URL = os.environ.get("WITHINGS_API_URL", "https://wbsapi.withings.net/v2")
+ACTIVITY_DATA_FIELDS_INTRADAY = [
     "steps",
     "elevation",
     "calories",
@@ -47,31 +46,15 @@ LOGGER = logging.getLogger(__name__)
 def get_activity_summary(
     access_token: str,
     user_id: int,
-    start_date: datetime.datetime,
-    end_date: datetime.datetime,
+    start_date: datetime,
+    end_date: datetime,
     offset: int = None,
     from_notification: bool = False,
 ) -> int:
 
-    if from_notification:
-        # find the last available entry in the DB
-        start_date = (
-            ActivitySummary.objects.filter(measured_at__isnull=False)
-            .latest("measured_at")
-            .measured_at
-        )
-        end_date = make_aware(datetime.datetime.now())
-        LOGGER.debug(
-            "Activity request from notification - start and end dates will be reset to %s and %s.",
-            start_date.strftime(DATETIME_FORMAT_ACTIVITY),
-            end_date.strftime(DATETIME_FORMAT_ACTIVITY),
-        )
-
-    all_dates = [
-        start_date + datetime.timedelta(n)
-        for n in range(int((end_date - start_date).days + 1))
-    ]
-    date_pairs = list(zip(all_dates, all_dates[1:]))
+    date_pairs = prepare_date_pairs(
+        ActivitySummary, start_date, end_date, from_notification
+    )
 
     counter = 0
     for sub_start_date, sub_end_date in date_pairs:
@@ -82,142 +65,88 @@ def get_activity_summary(
             "data_fields": ",".join(ACTIVITY_DATA_FIELDS),
             "offset": offset,
         }
-        headers = {"Authorization": f"Bearer {access_token}"}
 
-        response = requests.post(
-            "https://wbsapi.withings.net/v2/measure", data=req_params, headers=headers,
+        data = send_data_request(
+            os.path.join(WITHINGS_API_URL, "measure"), req_params, access_token
         )
-        meas = json.loads(response.text)
 
-        if meas["status"] != 0:
-            raise APIError(
-                f"An error ocurred while fetching activities. The reason wsa: {meas['error']}"
+        for entry in data["activities"]:
+            LOGGER.debug(entry)
+            if "heart_rate" in entry.keys() or "steps" in entry.keys():
+                measurement_type = (
+                    "heart_rate" if "heart_rate" in entry.keys() else "steps"
+                )
+            else:
+                LOGGER.debug("No steps or heart rate found in the data - skipping...")
+                continue
+            entry_date = datetime.strptime(entry.get("date"), DATETIME_FORMAT_ACTIVITY)
+            measurement_time = make_aware(entry_date)
+            potential_entry = ActivitySummary.objects.filter(
+                measured_at=measurement_time, measurement_type=measurement_type
             )
-        else:
-            # check whether entries already exist (by start- and end-date)
-            activity = meas["body"]
+            if len(potential_entry) == 0:
+                try:
+                    # save raw activity to DB
+                    if measurement_type == "steps":
+                        distance = entry.get("distance")
+                        elevation = entry.get("elevation")
+                        calories = entry.get("calories")
+                        steps = entry.get("steps")
+                    else:
+                        distance, elevation, calories, steps = None, None, None, None
 
-            for entry in activity["activities"]:
-                LOGGER.debug(entry)
-                if "heart_rate" in entry.keys() or "steps" in entry.keys():
-                    measurement_type = (
-                        "heart_rate" if "heart_rate" in entry.keys() else "steps"
+                    new_activity_summary = ActivitySummary(
+                        device_type=entry.get("brand"),
+                        device_id=0
+                        if not entry.get("deviceid", 0)
+                        else entry.get("deviceid", 0),
+                        user_id=user_id,
+                        measured_at=measurement_time,
+                        measurement_type=measurement_type,
+                        is_tracker=entry.get("is_tracker"),
+                        steps=steps,
+                        distance=distance,
+                        elevation=elevation,
+                        calories=calories,
+                        soft_activities_duration=entry.get("soft"),
+                        moderate_activities_duration=entry.get("moderate"),
+                        intense_activities_duration=entry.get("intense"),
+                        active_duration=entry.get("active"),
+                        total_calories=entry.get("totalcalories"),
+                        hr_average=entry.get("hr_average"),
+                        hr_min=entry.get("hr_min"),
+                        hr_max=entry.get("hr_max"),
+                        hr_zone_light_duration=entry.get("hr_zone_0"),
+                        hr_zone_moderate_duration=entry.get("hr_zone_1"),
+                        hr_zone_intense_duration=entry.get("hr_zone_2"),
+                        hr_zone_max_duration=entry.get("hr_zone_3"),
                     )
-                else:
-                    LOGGER.debug(
-                        "No steps or heart rate found in the data - skipping..."
+                    new_activity_summary.save()
+                    counter += 1
+                except IntegrityError as e:
+                    LOGGER.error("An error occurred when writing to the DB: %s.", e)
+                except KeyError as e:
+                    LOGGER.error(
+                        "An error occurred when writing to the DB: %s. Data contents: %s. Datetime: %s",
+                        e,
+                        entry,
+                        measurement_time,
                     )
-                    continue
-                measurement_time = make_aware(
-                    datetime.datetime.strptime(entry["date"], DATETIME_FORMAT_ACTIVITY)
-                )
-                potential_entry = ActivitySummary.objects.filter(
-                    measured_at=measurement_time, measurement_type=measurement_type
-                )
-                if len(potential_entry) == 0:
-                    try:
-                        # save raw activity to DB
-                        new_activity_summary = ActivitySummary(
-                            device_type=entry["brand"],
-                            device_id=0 if not entry["deviceid"] else entry["deviceid"],
-                            user_id=user_id,
-                            measured_at=measurement_time,
-                            measurement_type=measurement_type,
-                            is_tracker=entry["is_tracker"],
-                            steps=entry["steps"]
-                            if measurement_type == "steps"
-                            else None,
-                            distance=entry["distance"]
-                            if measurement_type == "steps"
-                            and "distance" in entry.keys()
-                            else None,
-                            elevation=entry["elevation"]
-                            if measurement_type == "steps"
-                            and "elevation" in entry.keys()
-                            else None,
-                            calories=entry["calories"]
-                            if measurement_type == "steps"
-                            and "calories" in entry.keys()
-                            else None,
-                            soft_activities_duration=entry["soft"]
-                            if "soft" in entry.keys()
-                            else None,
-                            moderate_activities_duration=entry["moderate"]
-                            if "moderate" in entry.keys()
-                            else None,
-                            intense_activities_duration=entry["intense"]
-                            if "intense" in entry.keys()
-                            else None,
-                            active_duration=entry["active"]
-                            if "active" in entry.keys()
-                            else None,
-                            total_calories=entry["totalcalories"]
-                            if "totalcalories" in entry.keys()
-                            else None,
-                            hr_average=entry["hr_average"]
-                            if "hr_average" in entry.keys()
-                            else None,
-                            hr_min=entry["hr_min"]
-                            if "hr_min" in entry.keys()
-                            else None,
-                            hr_max=entry["hr_max"]
-                            if "hr_max" in entry.keys()
-                            else None,
-                            hr_zone_light_duration=entry["hr_zone_0"]
-                            if "hr_zone_0" in entry.keys()
-                            else None,
-                            hr_zone_moderate_duration=entry["hr_zone_1"]
-                            if "hr_zone_1" in entry.keys()
-                            else None,
-                            hr_zone_intense_duration=entry["hr_zone_2"]
-                            if "hr_zone_2" in entry.keys()
-                            else None,
-                            hr_zone_max_duration=entry["hr_zone_3"]
-                            if "hr_zone_3" in entry.keys()
-                            else None,
-                        )
-                        new_activity_summary.save()
-                        counter += 1
-                    except IntegrityError as e:
-                        LOGGER.error("An error occurred when writing to the DB: %s.", e)
-                    except KeyError as e:
-                        LOGGER.error(
-                            "An error occurred when writing to the DB: %s. Data contents: %s. Datetime: %s",
-                            e,
-                            entry,
-                            measurement_time,
-                        )
-                        raise e
+                    raise e
     return counter
 
 
 def get_activity_detailed(
     access_token: str,
     user_id: int,
-    start_date: datetime.datetime,
-    end_date: datetime.datetime,
+    start_date: datetime,
+    end_date: datetime,
     from_notification: bool = False,
 ) -> int:
 
-    if from_notification:
-        # find the last available entry in the DB
-        start_date = (
-            ActivityRaw.objects.filter(measured_at__isnull=False)
-            .latest("measured_at")
-            .measured_at
-        )
-        end_date = make_aware(datetime.datetime.now())
-        LOGGER.debug(
-            "Activity request from notification - start and end dates will be reset to %s and %s.",
-            start_date.strftime(DATETIME_FORMAT_ACTIVITY),
-            end_date.strftime(DATETIME_FORMAT_ACTIVITY),
-        )
-
-    all_dates = [
-        start_date + datetime.timedelta(n)
-        for n in range(int((end_date - start_date).days + 1))
-    ]
-    date_pairs = list(zip(all_dates, all_dates[1:]))
+    date_pairs = prepare_date_pairs(
+        ActivityRaw, start_date, end_date, from_notification
+    )
 
     counter = 0
     skipped_counter = 0
@@ -226,84 +155,69 @@ def get_activity_detailed(
             "action": "getintradayactivity",
             "startdate": int(sub_start_date.timestamp()),
             "enddate": int(sub_end_date.timestamp()),
-            "data_fields": ",".join(ACTIVITY_INTRADAY_DATA_FIELDS),
+            "data_fields": ",".join(ACTIVITY_DATA_FIELDS_INTRADAY),
         }
-        headers = {"Authorization": f"Bearer {access_token}"}
 
-        response = requests.post(
-            "https://wbsapi.withings.net/v2/measure", data=req_params, headers=headers,
+        data = send_data_request(
+            os.path.join(WITHINGS_API_URL, "measure"), req_params, access_token
         )
-        meas_detailed = json.loads(response.text)
 
-        if meas_detailed["status"] != 0:
-            raise APIError(
-                f"An error ocurred while fetching intra-day activities. The reason wsa: {meas_detailed['error']}"
-            )
-        else:
-            # check whether entries already exist (by start- and end-date)
-            activity_raw = meas_detailed["body"]
-
-            for ts, entry in activity_raw["series"].items():
-                LOGGER.debug(entry)
-                if "heart_rate" in entry.keys() or "steps" in entry.keys():
-                    measurement_type = (
-                        "heart_rate" if "heart_rate" in entry.keys() else "steps"
-                    )
-                else:
-                    LOGGER.debug(
-                        "No steps or heart rate found in the data - skipping..."
-                    )
-                    skipped_counter += 1
-                    continue
-                measurement_time = make_aware(datetime.datetime.fromtimestamp(int(ts)))
-                LOGGER.debug(f"Measurement time: %s", measurement_time)
-                potential_entry = ActivityRaw.objects.filter(
-                    measured_at=measurement_time, measurement_type=measurement_type
+        # TODO: double check that - is this ts going to work?
+        for ts, entry in data["series"].items():
+            LOGGER.debug(entry)
+            if "heart_rate" in entry.keys() or "steps" in entry.keys():
+                measurement_type = (
+                    "heart_rate" if "heart_rate" in entry.keys() else "steps"
                 )
-                if len(potential_entry) == 0:
-                    try:
-                        # save raw activity to DB
-                        new_activity_raw = ActivityRaw(
-                            device_type=entry["model"],
-                            device_id=entry["model_id"],
-                            user_id=user_id,
-                            measured_at=measurement_time,
-                            measurement_type=measurement_type,
-                            steps=entry["steps"]
-                            if measurement_type == "steps"
-                            else None,
-                            duration=entry["duration"],
-                            distance=entry["distance"]
-                            if measurement_type == "steps"
-                            and "distance" in entry.keys()
-                            else None,
-                            elevation=entry["elevation"]
-                            if measurement_type == "steps"
-                            and "elevation" in entry.keys()
-                            else None,
-                            calories=entry["calories"]
-                            if measurement_type == "steps"
-                            and "calories" in entry.keys()
-                            else None,
-                            heart_rate=entry["heart_rate"]
-                            if measurement_type == "heart_rate"
-                            else None,
-                        )
-                        new_activity_raw.save()
-                        counter += 1
-                    except IntegrityError as e:
-                        LOGGER.error("An error occurred when writing to the DB: %s.", e)
-                    except KeyError as e:
-                        LOGGER.error(
-                            "An error occurred when writing to the DB: %s. Data contents: %s. Datetime: %s",
-                            e,
-                            entry,
-                            measurement_time,
-                        )
-                        raise e
+            else:
+                LOGGER.debug("No steps or heart rate found in the data - skipping...")
+                skipped_counter += 1
+                continue
+            measurement_time = make_aware(datetime.fromtimestamp(int(ts)))
+            LOGGER.debug(f"Measurement time: %s", measurement_time)
+            potential_entry = ActivityRaw.objects.filter(
+                measured_at=measurement_time, measurement_type=measurement_type
+            )
+            if len(potential_entry) == 0:
+                try:
+                    if measurement_type == "steps":
+                        distance = entry.get("distance")
+                        elevation = entry.get("elevation")
+                        calories = entry.get("calories")
+                        steps = entry.get("steps")
+                    else:
+                        distance, elevation = None, None
+                        calories, steps = None, None
+
+                    new_activity_raw = ActivityRaw(
+                        device_type=entry.get("model"),
+                        device_id=entry.get("model_id"),
+                        user_id=user_id,
+                        measured_at=measurement_time,
+                        measurement_type=measurement_type,
+                        steps=steps,
+                        duration=entry.get("duration"),
+                        distance=distance,
+                        elevation=elevation,
+                        calories=calories,
+                        heart_rate=entry.get("heart_rate"),
+                    )
+                    new_activity_raw.save()
+                    counter += 1
+                except IntegrityError as e:
+                    LOGGER.error("An error occurred when writing to the DB: %s.", e)
+                except KeyError as e:
+                    LOGGER.error(
+                        "An error occurred when writing to the DB: %s. Data contents: %s. Datetime: %s",
+                        e,
+                        entry,
+                        measurement_time,
+                    )
+                    raise e
         if skipped_counter > 0:
             LOGGER.debug(
-                f"Total of {skipped_counter} of of {counter + skipped_counter} entries without heart rate or steps data were found "
+                f"Total of {skipped_counter} of of {counter + skipped_counter} entries without "
+                f"heart rate or steps data were found "
             )
     return counter
 
@@ -311,8 +225,8 @@ def get_activity_detailed(
 def request_all_activities_data(
     access_token: str,
     user_id: int,
-    start_date: datetime.datetime,
-    end_date: datetime.datetime,
+    start_date: datetime,
+    end_date: datetime,
     from_notification: bool = False,
 ) -> (int, int):
     activities_raw_counter = get_activity_detailed(

@@ -1,25 +1,76 @@
-import datetime
+from datetime import datetime, timedelta
+import json
+import logging
+
+import requests
+from django.utils.timezone import make_aware
 
 
 class APIError(Exception):
     pass
 
 
-def parse_dates(start_date, end_date):
+DATETIME_FORMAT_COMMON = "%Y-%m-%dT%H:%M:%S%z"
+LOGGER = logging.getLogger(__name__)
+
+
+def parse_dates(start_date: str, end_date: str) -> (str, str):
     if not end_date:
-        end_date = datetime.datetime.now()
+        end_date = datetime.now()
     else:
-        end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").replace(hour=11)
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=11)
 
     if not start_date:
-        start_date = end_date - datetime.timedelta(hours=24)
+        start_date = end_date - timedelta(hours=24)
     else:
-        start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").replace(hour=18)
-    return start_date, end_date
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").replace(hour=18)
+
+    return (
+        make_aware(start_date).strftime(DATETIME_FORMAT_COMMON),
+        make_aware(end_date).strftime(DATETIME_FORMAT_COMMON),
+    )
 
 
-def extract_and_parse_dates(request):
+def extract_and_parse_dates(request) -> (str, str):
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
     start_date, end_date = parse_dates(start_date, end_date)
     return start_date, end_date
+
+
+def send_data_request(endpoint: str, params: dict, access_token: str):
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    response = requests.post(endpoint, data=params, headers=headers,)
+    LOGGER.debug("Endpoint: %s, params: %s", endpoint, params)
+    if response.status_code > 300:
+        raise APIError(f"API returned error {response.status_code}: {response.reason}")
+
+    data = json.loads(response.text)
+    if data["status"] != 0:
+        raise APIError(
+            f"An error occurred while fetching data from {endpoint}. The reason was: {data['error']}"
+        )
+    return data["body"]
+
+
+def prepare_date_pairs(db_model, start_date, end_date, from_notification):
+    if from_notification:
+        # find the last available entry in the DB
+        start_date = (
+            db_model.objects.filter(measured_at__isnull=False)
+            .latest("measured_at")
+            .measured_at
+        )
+        end_date = make_aware(datetime.now())
+        LOGGER.debug(
+            "Request from notification - start and end dates will be reset to %s and %s.",
+            start_date.strftime(DATETIME_FORMAT_COMMON),
+            end_date.strftime(DATETIME_FORMAT_COMMON),
+        )
+
+    all_dates = [
+        start_date + timedelta(n) for n in range(int((end_date - start_date).days + 1))
+    ]
+    date_pairs = list(zip(all_dates, all_dates[1:]))
+    return date_pairs

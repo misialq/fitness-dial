@@ -46,12 +46,12 @@ def index(request):
             user_id = 22336123
             valid_token_data = get_valid_token(user_id)
 
-            notify_list_response = fetch_all_notifications(valid_token_data["access_token"], appli)
+            notify_list_response = fetch_all_notifications(
+                valid_token_data["access_token"], appli
+            )
             LOGGER.debug(notify_list_response.text)
             subscribe_response = subscribe_to_notifications(
-                valid_token_data["access_token"],
-                CALLBACK_URL,
-                appli,
+                valid_token_data["access_token"], CALLBACK_URL, appli,
             )
             LOGGER.debug(subscribe_response.text)
 
@@ -102,7 +102,9 @@ def check_sleep(request):
 
     # make data request
     LOGGER.debug("Executing celery sleep task.")
-    celery_request_all_sleep_data.delay(access_token_data, start_date, end_date)
+    celery_request_all_sleep_data.delay(
+        access_token_data, user_id, start_date, end_date
+    )
     return HttpResponse("OK")
 
 
@@ -111,16 +113,13 @@ def check_measurements(request):
     # extract query params
     start_date, end_date = extract_and_parse_dates(request)
     user_id = request.GET.get("user_id")
-    measurement_types = request.GET.get("measurement_types")
+    measurement_type = request.GET.get("measurement_types")
 
-    if not measurement_types:
+    if not measurement_type:
         # TODO: probably should raise an error here
         LOGGER.warning(
             "No measurement type was provided in the request. The following request to Withings API will likely fail."
         )
-        measurement_types = None
-    else:
-        measurement_types = measurement_types.split(",")
 
     # fetch a valid token
     LOGGER.info("Fetching valid token for user: %s", user_id)
@@ -128,7 +127,9 @@ def check_measurements(request):
 
     # make data request
     LOGGER.debug("Executing celery measurements task.")
-    celery_request_all_measurement_data.delay(access_token_data, start_date, end_date, measurement_types)
+    celery_request_all_measurement_data.delay(
+        access_token_data, user_id, start_date, end_date, measurement_type
+    )
     return HttpResponse("OK")
 
 
@@ -143,5 +144,7 @@ def check_activity(request):
     access_token_data = get_valid_token(user_id)
 
     # make data request
-    celery_request_all_activity_data.delay(access_token_data, start_date, end_date, user_id)
+    celery_request_all_activity_data.delay(
+        access_token_data, user_id, start_date, end_date
+    )
     return HttpResponse("OK")

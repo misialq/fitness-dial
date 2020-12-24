@@ -6,8 +6,6 @@ import os
 import requests
 from django.db.models import Q
 from django.utils import timezone
-from requests import Response
-from withings_api import WithingsApi, new_credentials
 
 from ..models import WithingsAuthentication
 
@@ -26,14 +24,20 @@ def get_valid_token(user_id):
     valid_tokens = WithingsAuthentication.objects.filter(expired=False)
     # if none available -> make a refresh request and insert into table
     if len(valid_tokens) == 0:
-        LOGGER.debug("No valid token could be found. Attempting to refresh the last token.")
+        LOGGER.debug(
+            "No valid token could be found. Attempting to refresh the last token."
+        )
         if len(WithingsAuthentication.objects.all()) == 0:
             raise AuthenticationError("No available access tokens.")
-        sorted_access_tokens = WithingsAuthentication.objects.filter(valid_to__isnull=False).order_by("valid_to")
+        sorted_access_tokens = WithingsAuthentication.objects.filter(
+            valid_to__isnull=False
+        ).order_by("valid_to")
 
         # refresh with retries since there could be more than one token with a similar timestamp
         # and we don't know which is the correct one to be refreshed
-        refresh_response = refresh_token_with_retries(sorted_access_tokens, max_refresh_attempts=3)
+        refresh_response = refresh_token_with_retries(
+            sorted_access_tokens, max_refresh_attempts=3
+        )
         access_token_data = save_access_token(refresh_response, user_id=user_id)
     elif len(valid_tokens) == 1:
         LOGGER.debug("Found one valid token. Checking expiration time.")
@@ -50,7 +54,9 @@ def get_valid_token(user_id):
             LOGGER.debug("Token is valid and has not yet expired.")
             access_token_data = construct_api_data_from_token(current_token)
     else:
-        LOGGER.debug("Found more than one valid token. Invalidating all but the last one.")
+        LOGGER.debug(
+            "Found more than one valid token. Invalidating all but the last one."
+        )
         # mark all but one as invalid and refresh that one
         last_valid_token = valid_tokens.latest("valid_to")
         valid_tokens.filter(~Q(id=last_valid_token.id)).update(expired=True)
@@ -82,7 +88,9 @@ def refresh_token_with_retries(tokens_sorted_byt_time, max_refresh_attempts):
             refresh_response = refresh_access_token(current_refresh_token.refresh_token)
             break
         except AuthenticationError as e:
-            LOGGER.debug(f"Refresh token attempt {refresh_attempts+1} failed. Retrying...")
+            LOGGER.debug(
+                f"Refresh token attempt {refresh_attempts+1} failed. Retrying..."
+            )
             if refresh_attempts + 1 == max_refresh_attempts:
                 raise e
             refresh_attempts += 1
@@ -100,11 +108,15 @@ def request_new_access_token(code: str):
         "code": code,
         "redirect_uri": CALLBACK_URL,
     }
-    token_response = requests.post("https://wbsapi.withings.net/v2/oauth2", data=req_params)
+    token_response = requests.post(
+        "https://wbsapi.withings.net/v2/oauth2", data=req_params
+    )
 
     json_response = json.loads(token_response.text)
     if json_response["status"] >= 500:
-        raise AuthenticationError("Error while requesting a new token: %s", json_response["error"])
+        raise AuthenticationError(
+            "Error while requesting a new token: %s", json_response["error"]
+        )
     else:
         LOGGER.debug(
             "Token request response: %s, status: %s",
@@ -149,11 +161,15 @@ def refresh_access_token(valid_refresh_token):
         "grant_type": "refresh_token",
         "refresh_token": valid_refresh_token,
     }
-    token_response = requests.post("https://wbsapi.withings.net/v2/oauth2", data=req_params)
+    token_response = requests.post(
+        "https://wbsapi.withings.net/v2/oauth2", data=req_params
+    )
 
     json_response = json.loads(token_response.text)
     if json_response["status"] >= 500:
-        raise AuthenticationError("Error while refreshing the token: %s", json_response["error"])
+        raise AuthenticationError(
+            "Error while refreshing the token: %s", json_response["error"]
+        )
     else:
         LOGGER.debug(
             "Token refresh response: %s, status: %s",
@@ -161,8 +177,3 @@ def refresh_access_token(valid_refresh_token):
             token_response.status_code,
         )
     return token_response
-
-
-def get_authenticated_api(access_token_data: dict, client_id: str, client_secret: str) -> WithingsApi:
-    credentials = new_credentials(client_id, client_secret, access_token_data)
-    return WithingsApi(credentials)
