@@ -3,6 +3,7 @@ import json
 import logging
 
 import requests
+from django.core.exceptions import FieldError
 from django.utils.timezone import make_aware
 
 
@@ -57,11 +58,20 @@ def send_data_request(endpoint: str, params: dict, access_token: str):
 def prepare_date_pairs(db_model, start_date, end_date, from_notification):
     if from_notification:
         # find the last available entry in the DB
-        start_date = (
-            db_model.objects.filter(measured_at__isnull=False)
-            .latest("measured_at")
-            .measured_at
-        )
+        try:
+            start_date = (
+                db_model.objects.filter(measured_at__isnull=False)
+                .latest("measured_at")
+                .measured_at
+            )
+        # sleep entries do not have measured_at attribute
+        except FieldError as e:
+            LOGGER.debug("Error: %s - will try to fetch by end date.", e)
+            start_date = (
+                db_model.objects.filter(end_date__isnull=False)
+                .latest("end_date")
+                .end_date
+            )
         end_date = make_aware(datetime.now())
         LOGGER.debug(
             "Request from notification - start and end dates will be reset to %s and %s.",
@@ -72,5 +82,7 @@ def prepare_date_pairs(db_model, start_date, end_date, from_notification):
     all_dates = [
         start_date + timedelta(n) for n in range(int((end_date - start_date).days + 1))
     ]
+    LOGGER.debug("All dates: %s", all_dates)
     date_pairs = list(zip(all_dates, all_dates[1:]))
+    LOGGER.debug("Date pairs: %s", date_pairs)
     return date_pairs

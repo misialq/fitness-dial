@@ -135,3 +135,8 @@ dmypy.json
 postgres_data/
 
 docker-compose-prod-withconn.yml
+vars-prod.env
+other_utils/
+.DS_Store
+.vscode
+withconn/withconn/settings/static/
