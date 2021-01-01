@@ -79,9 +79,12 @@ def prepare_date_pairs(db_model, start_date, end_date, from_notification):
             end_date.strftime(DATETIME_FORMAT_COMMON),
         )
 
-    all_dates = [
-        start_date + timedelta(n) for n in range(int((end_date - start_date).days + 1))
-    ]
+    time_diff = end_date - start_date
+    if int(time_diff.days) > 0:
+        time_range = range(int(time_diff.days + 1))
+    else:
+        time_range = range(2)
+    all_dates = [start_date + timedelta(n) for n in time_range]
     LOGGER.debug("All dates: %s", all_dates)
     date_pairs = list(zip(all_dates, all_dates[1:]))
     LOGGER.debug("Date pairs: %s", date_pairs)
