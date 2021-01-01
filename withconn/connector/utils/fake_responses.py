@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytz
 
-from withconn.connector.utils.activity import DATETIME_FORMAT_ACTIVITY
+from .activity import DATETIME_FORMAT_ACTIVITY
 
 DATE1_STR = "2020-12-08"
 DATE2_STR = "2020-12-09"
