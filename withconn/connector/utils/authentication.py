@@ -7,7 +7,7 @@ import requests
 from django.db.models import Q
 from django.utils import timezone
 
-from ..models import WithingsAuthentication
+from connector.models import WithingsAuthentication
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")

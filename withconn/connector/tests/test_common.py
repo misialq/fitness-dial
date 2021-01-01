@@ -12,8 +12,7 @@ class UtilsTestCase(TestCase):
     def setUp(self):
         self.fake_token = "token124"
         self.user_id = 123
-        self.start_date = datetime.strptime("20201208-211000", "%Y%m%d-%H%M%S")
-        self.end_date = datetime.strptime("20201208-221000", "%Y%m%d-%H%M%S")
+        self.start_date = datetime(2020, 12, 30, 9, 48, 0, tzinfo=pytz.UTC)
 
         ActivitySummary.objects.create(
             user_id=123,
@@ -46,10 +45,9 @@ class UtilsTestCase(TestCase):
         with Replace(
             "connector.utils.common.datetime", test_datetime(2020, 12, 8, 21, 5, 30)
         ):
-            start_date = datetime.strptime("2020-12-30T09:48:00", "%Y-%m-%dT%H:%M:%S")
             end_date = datetime.strptime("2020-12-31T08:59:37", "%Y-%m-%dT%H:%M:%S")
             date_pairs_obs = prepare_date_pairs(
-                ActivitySummary, start_date, end_date, True
+                ActivitySummary, self.start_date, end_date, True
             )
             date_pairs_exp = [
                 (
@@ -65,10 +63,9 @@ class UtilsTestCase(TestCase):
         with Replace(
             "connector.utils.common.datetime", test_datetime(2020, 12, 9, 21, 5, 30)
         ):
-            start_date = datetime.strptime("2020-12-30T09:48:00", "%Y-%m-%dT%H:%M:%S")
             end_date = datetime.strptime("2020-12-31T08:59:37", "%Y-%m-%dT%H:%M:%S")
             date_pairs_obs = prepare_date_pairs(
-                ActivitySummary, start_date, end_date, True
+                ActivitySummary, self.start_date, end_date, True
             )
             date_pairs_exp = [
                 (
@@ -84,10 +81,9 @@ class UtilsTestCase(TestCase):
         with Replace(
             "connector.utils.common.datetime", test_datetime(2020, 12, 11, 21, 5, 30)
         ):
-            start_date = datetime.strptime("2020-12-30T09:48:00", "%Y-%m-%dT%H:%M:%S")
             end_date = datetime.strptime("2020-12-31T08:59:37", "%Y-%m-%dT%H:%M:%S")
             date_pairs_obs = prepare_date_pairs(
-                ActivitySummary, start_date, end_date, True
+                ActivitySummary, self.start_date, end_date, True
             )
             date_pairs_exp = [
                 (
@@ -108,10 +104,9 @@ class UtilsTestCase(TestCase):
                 self.assertEqual(i, j)
 
     def test_date_pairs_nonotif_same_day(self):
-        start_date = datetime(2020, 12, 30, 9, 48, 0, tzinfo=pytz.UTC)
         end_date = datetime(2020, 12, 30, 9, 48, 37, tzinfo=pytz.UTC)
         date_pairs_obs = prepare_date_pairs(
-            ActivitySummary, start_date, end_date, False
+            ActivitySummary, self.start_date, end_date, False
         )
         date_pairs_exp = [
             (
@@ -124,10 +119,9 @@ class UtilsTestCase(TestCase):
             self.assertEqual(i, j)
 
     def test_date_pairs_nonotif_next_day(self):
-        start_date = datetime(2020, 12, 30, 9, 48, 0, tzinfo=pytz.UTC)
         end_date = datetime(2020, 12, 31, 9, 48, 37, tzinfo=pytz.UTC)
         date_pairs_obs = prepare_date_pairs(
-            ActivitySummary, start_date, end_date, False
+            ActivitySummary, self.start_date, end_date, False
         )
         date_pairs_exp = [
             (
@@ -140,10 +134,9 @@ class UtilsTestCase(TestCase):
             self.assertEqual(i, j)
 
     def test_date_pairs_nonotif_more_days(self):
-        start_date = datetime(2020, 12, 30, 9, 48, 0, tzinfo=pytz.UTC)
         end_date = datetime(2021, 1, 2, 9, 48, 37, tzinfo=pytz.UTC)
         date_pairs_obs = prepare_date_pairs(
-            ActivitySummary, start_date, end_date, False
+            ActivitySummary, self.start_date, end_date, False
         )
         date_pairs_exp = [
             (

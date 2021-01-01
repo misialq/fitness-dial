@@ -6,8 +6,8 @@ from django.utils.timezone import make_aware
 
 import numpy as np
 
-from .common import prepare_date_pairs, send_data_request
-from ..models import Weight
+from connector.utils.common import prepare_date_pairs, send_data_request
+from connector.models import Weight
 
 
 class MeasurementTypeError(Exception):

@@ -5,8 +5,8 @@ import logging
 from django.db import IntegrityError
 from django.utils.timezone import make_aware
 
-from ..models import ActivityRaw, ActivitySummary
-from .common import send_data_request, prepare_date_pairs
+from connector.models import ActivityRaw, ActivitySummary
+from connector.utils.common import send_data_request, prepare_date_pairs
 
 
 WITHINGS_API_URL = os.environ.get("WITHINGS_API_URL", "https://wbsapi.withings.net/v2")

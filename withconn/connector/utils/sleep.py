@@ -5,8 +5,8 @@ import logging
 from django.db import IntegrityError
 from django.utils.timezone import make_aware
 
-from .common import send_data_request, prepare_date_pairs
-from ..models import SleepSummary, SleepRaw
+from connector.utils.common import send_data_request, prepare_date_pairs
+from connector.models import SleepSummary, SleepRaw
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 DATETIME_FORMAT_SLEEP = "%Y-%m-%d"
