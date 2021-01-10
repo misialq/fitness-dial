@@ -1,27 +1,4 @@
-FROM python:3.8
-
-ARG user_name=app_user
-ARG user_group=app_group
-ENV SITE_DIR=/app
-
-ENV LANG C.UTF-8
-ENV LC_ALL C.UTF-8
-
-RUN apt-get update && apt-get install -y netcat
-RUN pip install pipenv uwsgi
-
-# create user
-RUN groupadd -r $user_group
-RUN useradd -g $user_group -d /home/ubuntu -ms /bin/bash $user_name
-
-# create a directory for the app with the right ownership and set working directory there
-RUN install -g $user_group -o $user_name -d ${SITE_DIR}
-WORKDIR ${SITE_DIR}
-
-# set sticky permissions for the group
-RUN find ${SITE_DIR} -type d -exec chmod g+s {} \;
-RUN chmod -R g+w ${SITE_DIR}
-
+FROM misialq/withconn:base-latest
 
 COPY Pipfile /Pipfile
 COPY Pipfile.lock /Pipfile.lock
