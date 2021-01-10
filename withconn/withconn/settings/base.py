@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "connector.apps.ConnectorConfig",
     "django_celery_beat",
+    "import_export",
 ]
 
 MIDDLEWARE = [

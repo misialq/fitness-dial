@@ -11,6 +11,16 @@ from django.utils import timezone
 from shortuuidfield import ShortUUIDField
 
 
+MEAL_TYPES = [
+    ("Breakfast", "Breakfast"),
+    ("Lunch", "Lunch"),
+    ("Dinner", "Dinner"),
+    ("Snacks", "Snacks"),
+    ("Other", "Other"),
+]
+MEAL_DATA_SOURCES = [("MyFitnessPal", "MyFitnessPal")]
+
+
 class WithingsAuthentication(models.Model):
     id = ShortUUIDField(primary_key=True)
     access_token = CharField(max_length=128)
@@ -126,3 +136,25 @@ class ActivitySummary(models.Model):
     hr_zone_intense_duration = IntegerField(null=True)
     hr_zone_max_duration = IntegerField(null=True)
     measurement_type = CharField(max_length=32)
+
+
+class Nutrition(models.Model):
+    id = ShortUUIDField(primary_key=True)
+    reported_at = DateTimeField(default=timezone.now, blank=True)
+    user_id = IntegerField()
+    start_date = DateTimeField()
+    end_date = DateTimeField()
+    meal = models.CharField(choices=MEAL_TYPES, max_length=16)
+    data_source = models.CharField(
+        choices=MEAL_DATA_SOURCES, max_length=16, default="MyFitnessPal"
+    )
+    calories = FloatField()
+    total_fat = FloatField()
+    saturated_fat = FloatField()
+    trans_fat = FloatField()
+    cholesterol = FloatField()
+    sodium = FloatField()
+    carbohydrates = FloatField()
+    sugar = FloatField()
+    fiber = FloatField()
+    protein = FloatField()
