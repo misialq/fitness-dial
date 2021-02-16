@@ -57,7 +57,7 @@ ROOT_URLCONF = "withconn.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [os.path.join(BASE_DIR, "templates/")],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -123,7 +123,12 @@ USE_TZ = True
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
+STATIC_ROOT = os.path.join(
+    PROJECT_ROOT, "static"
+)  # static files will be collected into here
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "boot"),
+]
 
 LOGGING = {
     "version": 1,

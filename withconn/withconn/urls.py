@@ -19,4 +19,5 @@ from django.urls import path, include
 urlpatterns = [
     path("connector/", include("connector.urls")),
     path("admin/", admin.site.urls),
+    # path("", include(".urls")),
 ]
