@@ -1,7 +1,6 @@
 name: Test and build connector image
 
-on:
-  push:
+on: push
 
 jobs:
   test:
