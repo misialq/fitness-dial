@@ -26,6 +26,12 @@ if "," in ALLOWED_HOSTS:
 else:
     ALLOWED_HOSTS = [ALLOWED_HOSTS]
 
+DISABLED_APPLIS = os.environ.get("DISABLED_APPLIS", "")
+if "," in DISABLED_APPLIS:
+    DISABLED_APPLIS = [int(x) for x in DISABLED_APPLIS.split(",")]
+else:
+    DISABLED_APPLIS = [DISABLED_APPLIS]
+
 # Application definition
 
 INSTALLED_APPS = [

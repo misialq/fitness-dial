@@ -7,7 +7,7 @@ from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import Nutrition, ActivitySummary, Weight, SleepSummary, SleepRaw
+from .models import Weight, SleepSummary, SleepRaw
 from .tasks import (
     celery_request_all_activity_data,
     celery_request_all_measurement_data,
@@ -25,6 +25,7 @@ from .utils.authentication import (
 )
 from .utils.common import extract_and_parse_dates
 from .utils.notifications import fetch_all_notifications, subscribe_to_notifications
+from ..withconn.settings import DISABLED_APPLIS
 
 LOGGER = logging.getLogger(__name__)
 HASS_CALLBACK_URL = os.environ.get("HASS_CALLBACK_URL")
@@ -76,6 +77,13 @@ def index(request):
             json_body[elem_split[0]] = elem_split[1]
         appli = json_body["appli"]
         LOGGER.debug(json_body)
+
+        if appli and int(appli) in DISABLED_APPLIS:
+            LOGGER.info(
+                "Received POST request for appli %s, however this appli is currently disabled.",
+                appli,
+            )
+            return HttpResponse("OK")
 
         if appli and int(appli) == 44:
             LOGGER.info("Received POST request for appli %s.", appli)
