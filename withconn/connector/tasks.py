@@ -15,7 +15,7 @@ LOGGER = get_task_logger(__name__)
 app = Celery("tasks", broker=CELERY_BROKER)
 
 
-@app.task
+@app.task(name="auto_appli_44", queue="sleep_tasks")
 def celery_appli_44_sleep(json_body):
     user_id = json_body["userid"]
     start_date = datetime.datetime.fromtimestamp(int(json_body["startdate"]))
@@ -46,7 +46,7 @@ def celery_appli_44_sleep(json_body):
     return
 
 
-@app.task
+@app.task(name="auto_appli_1", queue="default")
 def celery_appli_1_measurements(json_body):
     user_id = json_body["userid"]
     start_date = datetime.datetime.fromtimestamp(int(json_body["startdate"]))
@@ -77,7 +77,7 @@ def celery_appli_1_measurements(json_body):
     return
 
 
-@app.task
+@app.task(name="auto_appli_16", queue="default")
 def celery_appli_16_activities(json_body):
     user_id = json_body["userid"]
     date = json_body["date"]
@@ -103,7 +103,7 @@ def celery_appli_16_activities(json_body):
     return
 
 
-@app.task
+@app.task(name="man_sleep", queue="default")
 def celery_request_all_sleep_data(access_token_data, user_id, start_date, end_date):
     LOGGER.debug("Celery task received: sleep.")
     LOGGER.info(
@@ -125,7 +125,7 @@ def celery_request_all_sleep_data(access_token_data, user_id, start_date, end_da
     return
 
 
-@app.task
+@app.task(name="man_measurement", queue="default")
 def celery_request_all_measurement_data(
     access_token_data, user_id, start_date, end_date, measurement_type
 ):
@@ -154,7 +154,7 @@ def celery_request_all_measurement_data(
     return
 
 
-@app.task
+@app.task(name="man_activity", queue="default")
 def celery_request_all_activity_data(access_token_data, user_id, start_date, end_date):
     LOGGER.debug("Celery task received: activity.")
     LOGGER.info(

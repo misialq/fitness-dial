@@ -4,6 +4,8 @@ import logging
 import os
 
 from celery import Celery
+from . import celerysettings as cset
+
 
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "withconn.settings.prod")
@@ -15,7 +17,14 @@ app = Celery("withconn", broker=CELERY_BROKER)
 # the configuration object to child processes.
 # - namespace='CELERY' means all celery-related configuration keys
 #   should have a `CELERY_` prefix.
-app.config_from_object("withconn.celerysettings")
+# app.config_from_object(cset)
+app.conf.update(
+    task_queues=cset.task_queues,
+    # task_routes=cset.task_routes,
+    task_default_queue=cset.task_default_queue,
+    task_serializer=cset.task_serializer,
+)
+# app.conf.task_default_queue = "default"
 
 # Load task modules from all registered Django app configs.
 app.autodiscover_tasks()

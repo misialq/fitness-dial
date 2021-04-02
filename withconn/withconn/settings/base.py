@@ -20,7 +20,7 @@ BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY")
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS")
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "")
 if "," in ALLOWED_HOSTS:
     ALLOWED_HOSTS = ALLOWED_HOSTS.split(",")
 else:
