@@ -25,10 +25,14 @@ from .utils.authentication import (
 )
 from .utils.common import extract_and_parse_dates
 from .utils.notifications import fetch_all_notifications, subscribe_to_notifications
-from ..withconn.settings import DISABLED_APPLIS
 
 LOGGER = logging.getLogger(__name__)
 HASS_CALLBACK_URL = os.environ.get("HASS_CALLBACK_URL")
+DISABLED_APPLIS = os.environ.get("DISABLED_APPLIS", "")
+if "," in DISABLED_APPLIS:
+    DISABLED_APPLIS = [int(x) for x in DISABLED_APPLIS.split(",")]
+else:
+    DISABLED_APPLIS = [DISABLED_APPLIS]
 
 
 @csrf_exempt
