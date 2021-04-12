@@ -1,4 +1,4 @@
-name: Test and build connector image
+name: Test and build
 
 on: push
 
