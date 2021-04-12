@@ -1,13 +1,10 @@
-import json
 import logging
 import os
-from datetime import datetime
 
 from django.http import HttpResponse, HttpResponseBadRequest
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import Weight, SleepSummary, SleepRaw
 from .tasks import (
     celery_request_all_activity_data,
     celery_request_all_measurement_data,
@@ -163,25 +160,3 @@ def check_activity(request):
         access_token_data, user_id, start_date, end_date
     )
     return HttpResponse("OK")
-
-
-def home(request):
-    last_weight = Weight.objects.latest("measured_at")
-    last_sleep_summary = SleepSummary.objects.latest("end_date")
-    last_sleep_raw = SleepRaw.objects.latest("end_date")
-
-    test_data = Weight.objects.all().order_by("-measured_at")[:10][::-1]
-    dates = json.dumps([x.measured_at.strftime("%Y-%m-%d") for x in test_data])
-    weights = [x.weight for x in test_data]
-
-    context = {
-        "dates": dates,
-        "weights": weights,
-        "last_weight": last_weight,
-        "last_sleep_summary": last_sleep_summary,
-        "last_sleep_raw": last_sleep_raw,
-        "sleep_reported_at": datetime.timestamp(last_sleep_raw.reported_at),
-        "sleep_summary_reported_at": datetime.timestamp(last_sleep_summary.reported_at),
-        "weight_reported_at": datetime.timestamp(last_weight.reported_at),
-    }
-    return render(request, "dashboard.html", context)

@@ -1,4 +1,6 @@
 # withings-connector
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+![CI test](https://github.com/misialq/withings-connector/actions/workflows/test_and_build.yaml/badge.svg)
 
 ```
 LDFLAGS=`echo $(pg_config --ldflags)` pipenv install psycopg2==2.8.5
