@@ -3,6 +3,7 @@ version: '3.1'
 services:
   db:
     image: postgres:9.6
+    container_name: db
     restart: always
     env_file:
       - vars-dev.env
@@ -15,6 +16,7 @@ services:
     build:
       dockerfile: Dockerfile
       context: .
+    container_name: web
     ports:
       - 8081:8000
     env_file:
@@ -24,31 +26,71 @@ services:
 
   rabbitmq:
     image: 'docker.io/bitnami/rabbitmq:3.8.8'
+    container_name: rabbitmq
     ports:
       - 4369:4369
       - 5672:5672
       - 25672:25672
       - 15672:15672
 
-  celery_worker:
+  celery_worker_default:
     build:
       dockerfile: Dockerfile
       context: .
+    container_name: celery_worker_default
     entrypoint: /bin/bash
-    command: -c "celery -A withconn worker -l INFO"
+    command: -c "celery -A withconn worker -l INFO -Q default"
     depends_on:
       - web
       - db
       - rabbitmq
-    hostname: celery_worker
+    hostname: celery_worker_default
+    env_file:
+      - vars-dev.env
+    restart: always
+
+  celery_worker_sleep:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    container_name: celery_worker_sleep
+    entrypoint: /bin/bash
+    command: -c "celery -A withconn worker -l INFO -Q sleep_tasks"
+    depends_on:
+      - web
+      - db
+      - rabbitmq
+    hostname: celery_worker_sleep
+    env_file:
+      - vars-dev.env
+    restart: always
+
+  celery_flower:
+    image: mher/flower:0.9.7
+    container_name: celery_flower
+    ports:
+      - 5555:5555
+    hostname: celery_flower
     env_file:
       - vars-dev.env
     restart: on-failure
+
+  grafana:
+    image: grafana/grafana:7.5.3
+    container_name: grafana
+    restart: always
+    privileged: false
+    user: "0"
+    volumes:
+      - ~/grafana_data:/var/lib/grafana
+    ports:
+      - 3000:3000
 
   fake_api:
     build:
       dockerfile: Dockerfile
       context: fake_api
+    container_name: fake_api
     ports:
       - 5000:5000
     environment:

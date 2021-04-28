@@ -6,9 +6,22 @@
 LDFLAGS=`echo $(pg_config --ldflags)` pipenv install psycopg2==2.8.5
 ```
 
+## Deploy the stack
+To deploy the stack as is (the DB, Django API, Celery workers, Celery flower for monitoring, 
+RabbitMQ, Grafana and the "Fake Withings API") run:
+
+`docker-compose -f docker-compose-dev-withconn.yml -p withconnector up -d`
+
+The default configuration allows making "fake" request using the mock Withings API which just returns
+some random data for some endpoints, rather than connecting to the actual API. If you want to use it with the real Withings API
+you will need to adjust the `WITHINGS_API_URL` environment variable and point to the correct URL.
+
+Before using though, you still need to adjust a couple of things - see below.
+
 ## RabbitMQ
 
 1. Exec into RabbitMQ container and adjust the password for the management user in case it doesn't work.
+- `docker exec -it rabbitmq /bin/bash`
 - `rabbitmqctl list_users`
 - `rabbitmqctl change_password <user> <new password>`
 2. Create a user for the withconn container:
@@ -19,7 +32,7 @@ LDFLAGS=`echo $(pg_config --ldflags)` pipenv install psycopg2==2.8.5
 - set * permissions to __/__ virtual host
 
 ## Database
-
+ 
 1. Exec into the __web__ container
 2. Run `python manage.py migrate` to prepare the DB for first use
 3. Open the interactive shell and create a user:
@@ -45,4 +58,19 @@ user = WithingsAuthentication(
 user.save()
 ```
 
+## Grafana dashboard
 
+1. Create a DB user for Grafana (you can use [pgAdmin](https://www.pgadmin.org/)).
+2. Grant SELECT permissions to the newly created user (you can use the Grant Wizard in pgAdmin).
+3. Log in to Grafana at [localhost:3000](http://localhost:3000) using the default credentials (admin/admin) - change password when prompted.
+4. Add a new PostgreSQL data source in the __Configuration__ tab and adjust the values according to the ones set via [environment variables](vars-dev.env):
+    - host: `db:5432`
+    - database: `test`
+    - user/password: as created in step 1.
+    - TLS/SSL Mode: `disable`
+5. Create a new dashboard using the provided [template](grafana-dashboard.json):
+    - in the Dashboards/Manage tab click on __Import__
+    - select __Upload JSON file__ and select the template
+    - adjust the name and folder, if desired, and __Import__
+    - alternatively, you can copy the contents of the [template](grafana-dashboard.json)
+    to the __Import via panel json__ field and continue as described above
