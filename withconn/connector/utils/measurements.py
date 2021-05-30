@@ -100,7 +100,7 @@ def process_weight_measurements(measuregrps: list, user_id: int) -> int:
     data_for_db = {}
     # measurements of a single type for all the days
     for measurement in measuregrps:
-        source = SOURCE_MAPPING[measurement.get("attrib")]
+        source = SOURCE_MAPPING.get(measurement.get("attrib"), "UNKNOWN")
         measured_at = make_aware(datetime.fromtimestamp(int(measurement.get("date"))))
         measured_at_ts = int(datetime.timestamp(measured_at) * 1000)
         device_id = measurement.get("deviceid")

@@ -80,14 +80,20 @@ def get_sleep_data_raw(
                     sleep_phase_id=sleep_phase_id,
                     hr_series=[
                         prepare_timepoint_dict(x, y) for x, y in entry.get("hr").items()
-                    ],
+                    ]
+                    if "hr" in entry
+                    else [],
                     rr_series=[
                         prepare_timepoint_dict(x, y) for x, y in entry.get("rr").items()
-                    ],
+                    ]
+                    if "rr" in entry
+                    else [],
                     snoring_series=[
                         prepare_timepoint_dict(x, y)
                         for x, y in entry.get("snoring").items()
-                    ],
+                    ]
+                    if "snoring" in entry
+                    else [],
                 )
                 new_sleep_raw.save()
                 counter += 1
