@@ -1,4 +1,4 @@
-FROM python:3.8
+﻿FROM python:3.8
 
 ARG user_name=app_user
 ARG user_group=app_group

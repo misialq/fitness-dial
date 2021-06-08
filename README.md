@@ -1,16 +1,21 @@
-# withings-connector
+# Fitness Dial
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 ![CI test](https://github.com/misialq/withings-connector/actions/workflows/test_and_build.yaml/badge.svg)
 
-```
-LDFLAGS=`echo $(pg_config --ldflags)` pipenv install psycopg2==2.8.5
-```
+Fitness Dial is a Django app that connects to Withings API and fetches your fitness data for most of the supported devices.
+The data is stored in a PostgreSQL database and can be viewed using the provided Grafana dashboard. If exposed on the Internet,
+it can also serve as a notification endpoint for receiving data notifications from Withings API. 
+Additionally, it supports manual imports of nutritional data as provided by MyFtinessPal in a form of CSV files.
+
+This is a work in progress project and all the necessary guides will be added/updated in the near future.  
 
 ## Deploy the stack
 To deploy the stack as is (the DB, Django API, Celery workers, Celery flower for monitoring, 
 RabbitMQ, Grafana and the "Fake Withings API") run:
 
-`docker-compose -f docker-compose-dev-withconn.yml -p withconnector up -d`
+`docker compose -f dc-fitness-dial-dev.yml -p fitness-dial up -d`
+
+This will build all the required images (or pull them from the registry) and start all the containers.
 
 The default configuration allows making "fake" request using the mock Withings API which just returns
 some random data for some endpoints, rather than connecting to the actual API. If you want to use it with the real Withings API
@@ -19,20 +24,18 @@ you will need to adjust the `WITHINGS_API_URL` environment variable and point to
 Before using though, you still need to adjust a couple of things - see below.
 
 ## RabbitMQ
-
 1. Exec into RabbitMQ container and adjust the password for the management user in case it doesn't work.
 - `docker exec -it rabbitmq /bin/bash`
 - `rabbitmqctl list_users`
 - `rabbitmqctl change_password <user> <new password>`
-2. Create a user for the withconn container:
-- `rabbitmqctl add_user <new username> <new password>`
+2. Create a user for the fitness-dial container (according to the values set for Celery broker in [vars-dev.env](vars-dev.env) file:
+- `rabbitmqctl add_user testuser pwd123`
 3. Go to [localhost:15672](http://localhost:15672), log in as the management user
 4. Go to __Admin__ tab:
 - select your new user in the table below
 - set * permissions to __/__ virtual host
 
 ## Database
- 
 1. Exec into the __web__ container
 2. Run `python manage.py migrate` to prepare the DB for first use
 3. Open the interactive shell and create a user:

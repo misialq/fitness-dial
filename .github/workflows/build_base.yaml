@@ -9,7 +9,7 @@ on:
       - '!master'
 
 jobs:
-  withconn-base:
+  dial-base:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

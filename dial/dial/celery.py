@@ -8,10 +8,10 @@ from . import celerysettings as cset
 
 
 # set the default Django settings module for the 'celery' program.
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "withconn.settings.prod")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dial.settings.prod")
 
 CELERY_BROKER = os.environ.get("CELERY_BROKER")
-app = Celery("withconn", broker=CELERY_BROKER)
+app = Celery("dial", broker=CELERY_BROKER)
 
 # Using a string here means the worker doesn't have to serialize
 # the configuration object to child processes.

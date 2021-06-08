@@ -134,9 +134,9 @@ dmypy.json
 # local pg database
 postgres_data/
 
-docker-compose-prod-withconn.yml
+dc-fitness-dial-prod.yml
 vars-prod.env
 other_utils/
 .DS_Store
 .vscode
-withconn/withconn/settings/static/
+dial/dial/settings/static/

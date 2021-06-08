@@ -39,7 +39,7 @@ services:
       context: .
     container_name: celery_worker_default
     entrypoint: /bin/bash
-    command: -c "celery -A withconn worker -l INFO -Q default"
+    command: -c "celery -A dial worker -l INFO -Q default"
     depends_on:
       - web
       - db
@@ -55,7 +55,7 @@ services:
       context: .
     container_name: celery_worker_sleep
     entrypoint: /bin/bash
-    command: -c "celery -A withconn worker -l INFO -Q sleep_tasks"
+    command: -c "celery -A dial worker -l INFO -Q sleep_tasks"
     depends_on:
       - web
       - db

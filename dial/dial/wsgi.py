@@ -1,5 +1,5 @@
 """
-WSGI config for withconn project.
+WSGI config for dial project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "withconn.settings.dev")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dial.settings.dev")
 
 application = get_wsgi_application()
