@@ -1,6 +1,6 @@
 # Fitness Dial
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-![CI test](https://github.com/misialq/withings-connector/actions/workflows/test_and_build.yaml/badge.svg)
+![CI test](https://github.com/misialq/fitness-dial/actions/workflows/test_and_build.yaml/badge.svg)
 
 Fitness Dial is a Django app that connects to Withings API and fetches your fitness data for most of the supported devices.
 The data is stored in a PostgreSQL database and can be viewed using the provided Grafana dashboard. If exposed on the Internet,

@@ -1,4 +1,4 @@
-FROM misialq/withconn:base-latest
+FROM misialq/fitness-dial:base-latest
 
 COPY Pipfile /Pipfile
 COPY Pipfile.lock /Pipfile.lock
