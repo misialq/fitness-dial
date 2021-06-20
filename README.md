@@ -77,3 +77,5 @@ user.save()
     - adjust the name and folder, if desired, and __Import__
     - alternatively, you can copy the contents of the [template](grafana-dashboard.json)
     to the __Import via panel json__ field and continue as described above
+      
+[![Buy me a coffee](img/bmc-button.png)](https://www.buymeacoffee.com/misialq)
