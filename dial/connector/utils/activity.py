@@ -5,7 +5,7 @@ import logging
 from django.db import IntegrityError
 from django.utils.timezone import make_aware
 
-from connector.models import ActivityRaw, ActivitySummary
+from connector.models import ActivityRaw, ActivitySummary, APIUser
 from connector.utils.common import send_data_request, prepare_date_pairs
 
 
@@ -55,6 +55,8 @@ def get_activity_summary(
     date_pairs = prepare_date_pairs(
         ActivitySummary, start_date, end_date, from_notification
     )
+    user = APIUser.objects.get(user_id=user_id)
+    # TODO: raise an error if user not found
 
     counter = 0
     for sub_start_date, sub_end_date in date_pairs:
@@ -100,7 +102,7 @@ def get_activity_summary(
                         device_id=0
                         if not entry.get("deviceid", 0)
                         else entry.get("deviceid", 0),
-                        user_id=user_id,
+                        user=user,
                         measured_at=measurement_time,
                         measurement_type=measurement_type,
                         is_tracker=entry.get("is_tracker"),
@@ -147,6 +149,8 @@ def get_activity_detailed(
     date_pairs = prepare_date_pairs(
         ActivityRaw, start_date, end_date, from_notification
     )
+    user = APIUser.objects.get(user_id=user_id)
+    # TODO: raise an error if user not found
 
     counter = 0
     skipped_counter = 0
@@ -192,7 +196,7 @@ def get_activity_detailed(
                     new_activity_raw = ActivityRaw(
                         device_type=entry.get("model"),
                         device_id=entry.get("model_id"),
-                        user_id=user_id,
+                        user=user,
                         measured_at=measurement_time,
                         measurement_type=measurement_type,
                         steps=steps,

@@ -7,7 +7,7 @@ import requests
 from django.db.models import Q
 from django.utils import timezone
 
-from connector.models import WithingsAuthentication
+from connector.models import WithingsAuthentication, APIUser
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
@@ -20,6 +20,9 @@ class AuthenticationError(Exception):
 
 
 def get_valid_token(user_id):
+    user = APIUser.objects.get(user_id=user_id)
+    # TODO: raise an error if user not found
+
     LOGGER.debug("Filtering DB for a valid token...")
     valid_tokens = WithingsAuthentication.objects.filter(expired=False)
     # if none available -> make a refresh request and insert into table
@@ -38,7 +41,7 @@ def get_valid_token(user_id):
         refresh_response = refresh_token_with_retries(
             sorted_access_tokens, max_refresh_attempts=3
         )
-        access_token_data = save_access_token(refresh_response, user_id=user_id)
+        access_token_data = save_access_token(refresh_response, user=user)
     elif len(valid_tokens) == 1:
         LOGGER.debug("Found one valid token. Checking expiration time.")
         current_token = valid_tokens[0]
@@ -49,7 +52,7 @@ def get_valid_token(user_id):
             current_token.expired = True
             current_token.save()
             refresh_response = refresh_access_token(current_token.refresh_token)
-            access_token_data = save_access_token(refresh_response, user_id=user_id)
+            access_token_data = save_access_token(refresh_response, user=user)
         else:
             LOGGER.debug("Token is valid and has not yet expired.")
             access_token_data = construct_api_data_from_token(current_token)
@@ -127,7 +130,7 @@ def request_new_access_token(code: str):
     return token_response
 
 
-def save_access_token(token_response, user_id: int):
+def save_access_token(token_response, user):
     response_body = json.loads(token_response.text)
     access_token = response_body["body"].get("access_token")
     refresh_token = response_body["body"].get("refresh_token")
@@ -142,13 +145,13 @@ def save_access_token(token_response, user_id: int):
         valid_to=timezone.now() + datetime.timedelta(seconds=expires_in),
         scope=scope.split(","),
         token_type=token_type,
-        user_id=user_id,
+        user=user,
         demo=False,
         expired=False,
     )
     new_token.save()
 
-    response_body["body"]["userid"] = user_id
+    response_body["body"]["userid"] = user.user_id
     return response_body["body"]
 
 

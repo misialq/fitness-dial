@@ -1,13 +1,17 @@
+from datetime import datetime
+
 from django.contrib.postgres.fields import ArrayField
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.db.models import (
     CharField,
     IntegerField,
     BooleanField,
     DateTimeField,
-    FloatField,
+    FloatField, EmailField,
 )
 from django.utils import timezone
+from django.utils.timezone import make_aware
 from shortuuidfield import ShortUUIDField
 
 
@@ -21,6 +25,20 @@ MEAL_TYPES = [
 MEAL_DATA_SOURCES = [("MyFitnessPal", "MyFitnessPal")]
 
 
+class APIUser(models.Model):
+    id = ShortUUIDField(primary_key=True)
+    first_name = CharField(max_length=30)
+    last_name = CharField(max_length=30)
+    email = EmailField()
+    user_id = IntegerField(unique=True)
+    demo = BooleanField()
+    height = FloatField(validators=[MinValueValidator(1.0), MaxValueValidator(2.5)])
+    date_of_birth = DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return "%s %s" % (self.first_name, self.last_name)
+
+
 class WithingsAuthentication(models.Model):
     id = ShortUUIDField(primary_key=True)
     access_token = CharField(max_length=128)
@@ -30,7 +48,7 @@ class WithingsAuthentication(models.Model):
     valid_to = DateTimeField()
     scope = ArrayField(models.CharField(max_length=32, blank=True), size=16)
     token_type = CharField(max_length=128, default="Bearer")
-    user_id = IntegerField()
+    user = models.ForeignKey(APIUser, on_delete=models.CASCADE)
     demo = BooleanField()
     expired = BooleanField()
 
@@ -40,7 +58,7 @@ class SleepSummary(models.Model):
     reported_at = DateTimeField(default=timezone.now, blank=True)
     start_date = DateTimeField()
     end_date = DateTimeField()
-    user_id = IntegerField()
+    user = models.ForeignKey(APIUser, on_delete=models.CASCADE)
     device_type = CharField(max_length=128)
     device_id = IntegerField()
     breathing_disturbances_intensity = IntegerField()
@@ -67,7 +85,7 @@ class SleepRaw(models.Model):
     reported_at = DateTimeField(default=timezone.now, blank=True)
     device_type = CharField(max_length=128)
     device_id = IntegerField()
-    user_id = IntegerField()
+    user = models.ForeignKey(APIUser, on_delete=models.CASCADE)
     start_date = DateTimeField()
     end_date = DateTimeField()
     sleep_phase = CharField(max_length=32)
@@ -81,7 +99,7 @@ class Weight(models.Model):
     id = ShortUUIDField(primary_key=True)
     reported_at = DateTimeField(default=timezone.now, blank=True)
     device_id = CharField(max_length=128)
-    user_id = IntegerField()
+    user = models.ForeignKey(APIUser, on_delete=models.CASCADE)
     measured_at = DateTimeField()
     source = CharField(max_length=64)
     weight = FloatField(null=True)
@@ -100,7 +118,7 @@ class ActivityRaw(models.Model):
     reported_at = DateTimeField(default=timezone.now, blank=True)
     device_type = CharField(max_length=128)
     device_id = IntegerField()
-    user_id = IntegerField()
+    user = models.ForeignKey(APIUser, on_delete=models.CASCADE)
     measured_at = DateTimeField()
     steps = IntegerField(null=True)
     duration = IntegerField()
@@ -116,7 +134,7 @@ class ActivitySummary(models.Model):
     reported_at = DateTimeField(default=timezone.now, blank=True)
     device_type = CharField(max_length=128)
     device_id = IntegerField()
-    user_id = IntegerField()
+    user = models.ForeignKey(APIUser, on_delete=models.CASCADE)
     measured_at = DateTimeField()
     is_tracker = BooleanField()
     steps = IntegerField(null=True)
@@ -141,7 +159,7 @@ class ActivitySummary(models.Model):
 class Nutrition(models.Model):
     id = ShortUUIDField(primary_key=True)
     reported_at = DateTimeField(default=timezone.now, blank=True)
-    user_id = IntegerField()
+    user = models.ForeignKey(APIUser, on_delete=models.CASCADE)
     start_date = DateTimeField()
     end_date = DateTimeField()
     meal = models.CharField(choices=MEAL_TYPES, max_length=16)

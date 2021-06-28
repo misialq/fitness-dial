@@ -6,6 +6,7 @@ import pytz
 from django.test import TestCase
 from testfixtures import Replace, test_datetime
 
+from ._utils import DialTestBase
 from .fake_responses import (
     DATE1,
     DATE2,
@@ -15,15 +16,14 @@ from ..models import ActivitySummary
 from ..utils.activity import get_activity_summary
 
 
-class ActivitySummaryTestCase(TestCase):
+class ActivitySummaryTestCase(DialTestBase):
     def setUp(self):
-        self.fake_token = "token124"
-        self.user_id = 123
+        super().setUp()
         self.start_date = datetime.strptime("20201208-211000", "%Y%m%d-%H%M%S")
         self.end_date = datetime.strptime("20201208-221000", "%Y%m%d-%H%M%S")
 
         ActivitySummary.objects.create(
-            user_id=123,
+            user=self.user,
             device_type="test_device",
             device_id=1,
             measured_at=datetime.strptime(
@@ -60,7 +60,7 @@ class ActivitySummaryTestCase(TestCase):
         ):
             obs_counter = get_activity_summary(
                 access_token=self.fake_token,
-                user_id=self.user_id,
+                user_id=self.user.user_id,
                 start_date=self.start_date,
                 end_date=self.end_date,
                 offset=None,
@@ -71,7 +71,7 @@ class ActivitySummaryTestCase(TestCase):
             expected_activities = FAKE_ACTIVITY_SUMMARY_RESPONSE["body"]["activities"]
             for i, date in enumerate((DATE1, DATE2)):
                 activity_result = ActivitySummary.objects.get(measured_at=date)
-                self.assertEqual(activity_result.user_id, 123)
+                self.assertEqual(activity_result.user.user_id, 123)
                 self.assertEqual(
                     activity_result.device_type, str(expected_activities[i]["brand"])
                 )

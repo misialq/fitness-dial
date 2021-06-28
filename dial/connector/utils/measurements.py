@@ -7,7 +7,7 @@ from django.utils.timezone import make_aware
 import numpy as np
 
 from connector.utils.common import prepare_date_pairs, send_data_request
-from connector.models import Weight
+from connector.models import Weight, APIUser
 
 
 class MeasurementTypeError(Exception):
@@ -65,6 +65,8 @@ def get_measurements(
 ) -> int:
 
     date_pairs = prepare_date_pairs(Weight, start_date, end_date, from_notification)
+    user = APIUser.objects.get(user_id=user_id)
+    # TODO: raise an error if user not found
 
     if meas_type not in MEASUREMENT_TYPES.keys():
         raise MeasurementTypeError(f"Measurement type '{meas_type}' is not supported.")
@@ -85,7 +87,7 @@ def get_measurements(
         )
 
         if meas_type == "weight":
-            weight_counter = process_weight_measurements(data["measuregrps"], user_id)
+            weight_counter = process_weight_measurements(data["measuregrps"], user)
             counter += weight_counter
         else:
             raise MeasurementTypeError(
@@ -95,7 +97,7 @@ def get_measurements(
     return counter
 
 
-def process_weight_measurements(measuregrps: list, user_id: int) -> int:
+def process_weight_measurements(measuregrps: list, user) -> int:
     counter = 0
     data_for_db = {}
     # measurements of a single type for all the days
@@ -160,7 +162,7 @@ def process_weight_measurements(measuregrps: list, user_id: int) -> int:
             try:
                 new_weight_measurement = Weight(
                     device_id=data_for_db[meas_ts].get("device_id", "unknown"),
-                    user_id=user_id,
+                    user=user,
                     source=data_for_db[meas_ts].get("source"),
                     measured_at=data_for_db[meas_ts].get("measured_at"),
                     weight=data_for_db[meas_ts].get("weight"),

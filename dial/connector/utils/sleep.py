@@ -6,7 +6,7 @@ from django.db import IntegrityError
 from django.utils.timezone import make_aware
 
 from connector.utils.common import send_data_request, prepare_date_pairs
-from connector.models import SleepSummary, SleepRaw
+from connector.models import SleepSummary, SleepRaw, APIUser
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 DATETIME_FORMAT_SLEEP = "%Y-%m-%d"
@@ -45,6 +45,8 @@ def get_sleep_data_raw(
 ) -> int:
 
     date_pairs = prepare_date_pairs(SleepRaw, start_date, end_date, from_notification)
+    user = APIUser.objects.get(user_id=user_id)
+    # TODO: raise an error if user not found
 
     counter = 0
     for sub_start_date, sub_end_date in date_pairs:
@@ -73,7 +75,7 @@ def get_sleep_data_raw(
                 new_sleep_raw = SleepRaw(
                     device_type=entry.get("model"),
                     device_id=entry.get("model_id"),
-                    user_id=user_id,
+                    user=user,
                     start_date=start_date_entry,
                     end_date=end_date_entry,
                     sleep_phase=SLEEP_PHASES[sleep_phase_id],
@@ -120,6 +122,8 @@ def get_sleep_data_summary(
     date_pairs = prepare_date_pairs(
         SleepSummary, start_date, end_date, from_notification
     )
+    user = APIUser.objects.get(user_id=user_id)
+    # TODO: raise an error if user not found
 
     counter = 0
     for sub_start_date, sub_end_date in date_pairs:
@@ -151,7 +155,7 @@ def get_sleep_data_summary(
                     new_sleep_summary = SleepSummary(
                         start_date=start_date_entry,
                         end_date=end_date_entry,
-                        user_id=user_id,
+                        user=user,
                         device_type=DEVICE_TYPES[entry.get("model")],
                         device_id=entry.get("model_id", 0),
                         breathing_disturbances_intensity=entry_data.get(

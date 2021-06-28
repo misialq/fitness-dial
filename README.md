@@ -40,25 +40,40 @@ Before using though, you still need to adjust a couple of things - see below.
 2. Run `python manage.py migrate` to prepare the DB for first use
 3. Open the interactive shell and create a user:
 
-```
+```shell
 python manage.py shell
+```
 
-from connector.models import WithingsAuthentication
+```python
+from connector.models import WithingsAuthentication, APIUser
 from django.utils import timezone
 from datetime import timedelta
 now = timezone.now()
-user = WithingsAuthentication(
-            access_token="faketoken", 
-            refresh_token="fakerefreshtoken", 
-            expires_in=360000, 
-            valid_from=now, 
-            valid_to=now+timedelta(seconds=360000), 
-            scope=["user.metrics","user.activity"], 
-            token_type="Bearer", 
-            user_id=123, 
-            demo=False, 
-            expired=False)
+
+user = APIUser(
+   first_name='Test',
+   last_name='User',
+   email='test@user.com',
+   user_id=123,
+   demo=False,
+   height=1.65,
+   date_of_birth=now
+)
 user.save()
+
+auth = WithingsAuthentication(
+   access_token="faketoken", 
+   refresh_token="fakerefreshtoken", 
+   expires_in=360000, 
+   valid_from=now, 
+   valid_to=now+timedelta(seconds=360000), 
+   scope=["user.metrics","user.activity"], 
+   token_type="Bearer", 
+   user=user, 
+   demo=False, 
+   expired=False
+)
+auth.save()
 ```
 
 ## Grafana dashboard

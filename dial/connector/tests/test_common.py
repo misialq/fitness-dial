@@ -1,21 +1,19 @@
 from datetime import datetime
 
 import pytz
-from django.test import TestCase
 
-from ..models import ActivitySummary
+from ._utils import DialTestBase
+from ..models import ActivitySummary, APIUser
 from ..utils.common import prepare_date_pairs
 from testfixtures import Replace, test_datetime
 
 
-class UtilsTestCase(TestCase):
+class UtilsTestCase(DialTestBase):
     def setUp(self):
-        self.fake_token = "token124"
-        self.user_id = 123
-        self.start_date = datetime(2020, 12, 30, 9, 48, 0, tzinfo=pytz.UTC)
+        super().setUp()
 
         ActivitySummary.objects.create(
-            user_id=123,
+            user=self.user,
             device_type="test_device",
             device_id=1,
             measured_at=datetime.strptime(
