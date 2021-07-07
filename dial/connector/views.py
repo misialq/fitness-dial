@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -5,6 +6,7 @@ from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
 
+from .models import APIUser
 from .tasks import (
     celery_request_all_activity_data,
     celery_request_all_measurement_data,
@@ -35,17 +37,23 @@ else:
 @csrf_exempt
 def index(request):
     if request.method == "GET":
+        LOGGER.debug("GET content: %s", request.GET)
+
         code = request.GET.get("code")
         state = request.GET.get("state")
         response_type = request.GET.get("response_type")
 
         if code is not None and state == "token_request":
             token_response = request_new_access_token(code)
+            user_id = int(json.loads(token_response.text)["body"].get("userid"))
             if token_response.status_code != 200:
                 return HttpResponseBadRequest("Token retrieval was unsuccessful.")
-            save_access_token(token_response, user_id=123)
+            user = APIUser.objects.get(user_id=user_id)
+            save_access_token(token_response, user=user)
             return HttpResponse("Authorisation request was successful.")
         elif code == "notifupdate":
+            LOGGER.debug("GET content: %s", request.GET)
+
             appli = request.GET.get("appli")
             # TODO: figure out what the correct ID should be here
             user_id = 22336123
