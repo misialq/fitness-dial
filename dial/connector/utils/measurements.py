@@ -41,6 +41,11 @@ MEASUREMENT_TYPE_MAPPING = {
     88: "BONE_MASS",
     91: "PULSE_WAVE_VELOCITY",
     123: "VO2",
+    135: "QRS_INTERVAL",
+    136: "PR_INTERVAL",
+    137: "QT_INTERVAL",
+    138: "CORRECTED_QT_INTERVAL",
+    139: "ATRIAL_FIBRILLATION"
 }
 SOURCE_MAPPING = {
     -1: "UNKNOWN",
@@ -123,7 +128,10 @@ def process_weight_measurements(measuregrps: list, user) -> int:
             measure_value_converted = np.round(measure_value * (10 ** measure_unit), 4)
 
             # TODO: change it later when fitness level is introduced properly
-            if measure_type in ["VO2", "UNKNOWN"]:
+            if measure_type in [
+                "VO2", "UNKNOWN", "QRS_INTERVAL", "PR_INTERVAL", "QT_INTERVAL",
+                "CORRECTED_QT_INTERVAL", "ATRIAL_FIBRILLATION"
+            ]:
                 LOGGER.warning(
                     "An unexpected measurement was found: %s. Value: %s, unit: %s",
                     measure_type,

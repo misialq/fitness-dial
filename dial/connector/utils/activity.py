@@ -98,7 +98,9 @@ def get_activity_summary(
                         distance, elevation, calories, steps = None, None, None, None
 
                     new_activity_summary = ActivitySummary(
-                        device_type=entry.get("brand"),
+                        device_type="unknown"
+                        if not entry.get("brand")
+                        else entry.get("brand"),
                         device_id=0
                         if not entry.get("deviceid", 0)
                         else entry.get("deviceid", 0),
@@ -194,8 +196,12 @@ def get_activity_detailed(
                         calories, steps = None, None
 
                     new_activity_raw = ActivityRaw(
-                        device_type=entry.get("model"),
-                        device_id=entry.get("model_id"),
+                        device_type="unknown"
+                        if not entry.get("model")
+                        else entry.get("model",),
+                        device_id=0
+                        if not entry.get("model_id")
+                        else entry.get("model_id"),
                         user=user,
                         measured_at=measurement_time,
                         measurement_type=measurement_type,
